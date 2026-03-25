@@ -13,9 +13,12 @@ type Website struct {
 }
 
 func generateRandomWebsites(websites chan Website) {
-	for i := 1; i <= 20; i++ {
-		websites <- Website{URL: fmt.Sprintf("https://website.example-%d.com", i)}
-	}
+	go func() {
+		for i := 1; i <= 20; i++ {
+			websites <- Website{URL: fmt.Sprintf("https://website.example-%d.com", i)}
+		}
+		close(websites)
+	}()
 }
 
 func worker(workerId int, websites chan Website, ctx context.Context, wg *sync.WaitGroup, mu *sync.Mutex, totalWords *int) {
@@ -28,14 +31,15 @@ func worker(workerId int, websites chan Website, ctx context.Context, wg *sync.W
 
 			// Validate website queue
 			if !ok {
-				fmt.Printf("Worker %d sees no more website to scrapped. Closing worker!", workerId)
+				fmt.Printf("Worker %d sees no more website to scrapped. Closing worker! \n", workerId)
 				return
 			}
 
 			// Validate request url
 			u, err := url.ParseRequestURI(website.URL)
 			if err != nil {
-				fmt.Printf("Worker %d received an invalid url. Skipping process!", workerId)
+				fmt.Printf("Worker %d received an invalid url. Skipping process! \n", workerId)
+				continue
 			}
 
 			time.Sleep(time.Millisecond * 600)
@@ -59,7 +63,7 @@ func main() {
 	var totalWords int
 
 	// Initiate channels for website queue
-	websites := make(chan Website, 20)
+	websites := make(chan Website, 5)
 
 	// Initiate context
 	ctx := context.Background()
